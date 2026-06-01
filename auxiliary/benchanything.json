@@ -16,7 +16,7 @@
 
     "action_space": {
       "type": "text",
-      "description": "A single non-negative integer as free text; the first integer in the response is used."
+      "description": "A single non-negative integer (just the number). The first integer in the response is used."
     },
 
     "reward": {
