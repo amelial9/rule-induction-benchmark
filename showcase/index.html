@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rule Induction — live demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#f6f3ec; --card:#fffdf8; --ink:#211f1a; --muted:#6f6a5e;
+    --line:#e3ddcf; --accent:#1d6f56; --accentink:#0c3d2d;
+    --good:#1d6f56; --goodbg:#e3f1ea; --bad:#9a3324; --badbg:#f6e4df;
+    --query:#8a5a00; --querybg:#faeccf;
+    --display:"Fraunces",Georgia,serif; --sans:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --paper:#16150f; --card:#201e16; --ink:#ece7da; --muted:#9c9684;
+      --line:#34311f; --accent:#5dcaa5; --accentink:#bff0dd;
+      --good:#7fd6b4; --goodbg:#143a30; --bad:#e8917f; --badbg:#3a201b;
+      --query:#e6b85a; --querybg:#3a2f12; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);line-height:1.5;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:720px;margin:0 auto;padding:40px 22px 70px}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  h1{font-family:var(--display);font-weight:600;font-size:36px;line-height:1.05;margin:.16em 0 .3em}
+  .sub{color:var(--muted);font-size:15px;max-width:60ch}
+  .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:24px 0}
+  label.lab{font-family:var(--mono);font-size:13px;color:var(--muted)}
+  select{font-family:var(--mono);font-size:13px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink)}
+  button{font-family:var(--mono);font-size:13px;font-weight:500;padding:9px 16px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+  button.primary{background:var(--accent);color:var(--paper);border-color:var(--accent)}
+  button.primary:disabled{opacity:.5;cursor:default}
+  .tally{margin-left:auto;font-family:var(--mono);font-size:13px;color:var(--muted)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px;margin-top:6px}
+  .examples{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+  .ex{font-family:var(--mono);font-size:14px;background:var(--paper);border:1px solid var(--line);border-radius:7px;padding:6px 11px}
+  .ex .n{color:var(--accent);font-weight:600}
+  .query{font-family:var(--mono);font-size:17px;background:var(--querybg);color:var(--query);border-radius:8px;padding:8px 14px;display:inline-block}
+  .result{margin-top:18px;border-top:1px dashed var(--line);padding-top:18px;display:none}
+  .answers{display:flex;gap:30px;flex-wrap:wrap;margin-bottom:14px;align-items:flex-end}
+  .ans .k{font-size:12px;color:var(--muted);font-family:var(--mono);text-transform:uppercase;letter-spacing:.08em}
+  .ans .v{font-family:var(--display);font-size:34px;font-weight:600;line-height:1}
+  .v.good{color:var(--good)} .v.bad{color:var(--bad)}
+  .verdict{font-family:var(--mono);font-size:13px;font-weight:600;padding:5px 12px;border-radius:999px;align-self:center}
+  .verdict.ok{background:var(--goodbg);color:var(--good)} .verdict.no{background:var(--badbg);color:var(--bad)}
+  .rule{font-size:13.5px;color:var(--muted);margin-bottom:14px}
+  .rule b{font-family:var(--mono);color:var(--ink);font-weight:500}
+  .reason{font-size:14px;white-space:pre-wrap;background:var(--paper);border-radius:8px;padding:13px 15px;color:var(--ink)}
+  .reason .k{font-family:var(--mono);font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);display:block;margin-bottom:7px}
+  .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px;margin-right:7px}
+  @keyframes s{to{transform:rotate(360deg)}}
+  .err{color:var(--bad);font-size:13.5px;margin-top:14px;line-height:1.5}
+  footer{margin-top:34px;color:var(--muted);font-size:12px;font-family:var(--mono);line-height:1.6}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">rule induction · live demo</div>
+  <h1>Can Claude crack the hidden rule?</h1>
+  <div class="sub">A fresh word&rarr;number puzzle is generated each time. Claude sees only the examples, then guesses the query — and we check it against the real rule.</div>
+
+  <div class="controls">
+    <label class="lab" for="diff">difficulty</label>
+    <select id="diff">
+      <option value="easy">easy</option>
+      <option value="medium" selected>medium</option>
+      <option value="hard">hard</option>
+    </select>
+    <button id="new">new puzzle</button>
+    <button id="solve" class="primary">solve with Claude</button>
+    <span class="tally" id="tally">0 / 0 solved</span>
+  </div>
+
+  <div class="card">
+    <div class="examples" id="examples"></div>
+    <div class="query" id="query"></div>
+    <div class="result" id="result">
+      <div class="answers">
+        <div class="ans"><div class="k">Claude guessed</div><div class="v" id="guess">—</div></div>
+        <div class="ans"><div class="k">correct answer</div><div class="v" id="expected">—</div></div>
+        <div class="verdict" id="verdict"></div>
+      </div>
+      <div class="rule" id="rulereveal"></div>
+      <div class="reason"><span class="k">Claude's reasoning</span><span id="reasontext"></span></div>
+    </div>
+    <div class="err" id="err" style="display:none"></div>
+  </div>
+
+  <footer>
+    Live solving calls a Claude model directly from this page. It runs inside the Claude artifact
+    environment, which supplies model access — opening the raw file elsewhere won't have it.
+    The rule logic is a JavaScript port of env.py; it isn't calling your real environment.
+  </footer>
+</div>
+
+<script>
+const VOWELS = "aeiou";
+const RULES = {
+  length:           {desc:"number of letters",                      tier:1, fn:w=>w.length},
+  vowels:           {desc:"number of vowels",                       tier:1, fn:w=>[...w].filter(c=>VOWELS.includes(c)).length},
+  consonants:       {desc:"letters minus vowels (consonants)",      tier:1, fn:w=>[...w].filter(c=>/[a-z]/.test(c)&&!VOWELS.includes(c)).length},
+  first_index:      {desc:"alphabet position of the first letter",  tier:1, fn:w=>w.charCodeAt(0)-96},
+  unique:           {desc:"number of distinct letters",             tier:2, fn:w=>new Set(w).size},
+  double_pairs:     {desc:"count of adjacent repeated letters",     tier:2, fn:w=>{let n=0;for(let i=0;i<w.length-1;i++)if(w[i]===w[i+1])n++;return n;}},
+  len_plus_vowels:  {desc:"letters plus vowels",                    tier:2, fn:w=>w.length+[...w].filter(c=>VOWELS.includes(c)).length},
+  repeats:          {desc:"letters minus distinct letters",         tier:2, fn:w=>w.length-new Set(w).size},
+  second_half:      {desc:"count of letters from n..z",             tier:3, fn:w=>[...w].filter(c=>c>="n").length},
+  letter_sum_mod10: {desc:"sum of letter positions, mod 10",        tier:3, fn:w=>([...w].reduce((s,c)=>s+(c.charCodeAt(0)-96),0))%10},
+  vowels_x2:        {desc:"number of vowels, doubled",              tier:3, fn:w=>2*[...w].filter(c=>VOWELS.includes(c)).length},
+};
+const TIERS = {easy:[1], medium:[1,2], hard:[1,2,3]};
+const WORDS = ["cat","dog","sun","moon","tree","fish","bird","frog","apple","banana","elephant","tiger","mango","lemon","grape","melon","ocean","river","cloud","stone","glass","bread","honey","sugar","balloon","coffee","kettle","mirror","puzzle","rabbit","yellow","pillow","summer","winter","letter","bottle","ladder","pepper","umbrella","octopus","diamond","machine","kitchen","morning","journey","violin","rocket","planet","garden","candle","window","silver","forest","desert","island","valley","meadow","thunder"];
+const NUM_TRAIN = 6;
+
+function sample(arr,k){const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a.slice(0,k);}
+function consistent(pool,examples){return pool.filter(id=>examples.every(([w,v])=>RULES[id].fn(w)===v));}
+
+function makePuzzle(difficulty){
+  const pool = Object.keys(RULES).filter(id=>TIERS[difficulty].includes(RULES[id].tier));
+  let last;
+  for(let t=0;t<400;t++){
+    const id = pool[Math.floor(Math.random()*pool.length)];
+    const words = sample(WORDS, NUM_TRAIN+1);
+    const train = words.slice(0,NUM_TRAIN).map(w=>[w, RULES[id].fn(w)]);
+    const query = words[NUM_TRAIN];
+    last = {id, train, query, answer:RULES[id].fn(query)};
+    const distinct = new Set(train.map(x=>x[1])).size;
+    if(distinct>=2 && consistent(pool,train).join()===id) return last;
+  }
+  return last;
+}
+
+function buildPrompt(train, query){
+  const ex = train.map(([w,v])=>`  ${w}  ->  ${v}`).join("\n");
+  return `Each word below maps to a number by one hidden rule.\n`+
+         `Work out the rule from the examples and apply it to the query word.\n\n`+
+         `Examples:\n${ex}\n\n`+
+         `Query:  ${query}  ->  ?\n\n`+
+         `This is your only turn. You cannot ask questions or request more examples. `+
+         `Respond with ONLY a single integer (just digits) and nothing else.`;
+}
+function firstInt(text){const m=String(text).match(/-?\d+/);return m?parseInt(m[0],10):null;}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+
+let PUZZLE=null, solved=0, attempts=0;
+
+function showPuzzle(){
+  PUZZLE = makePuzzle(document.getElementById("diff").value);
+  document.getElementById("examples").innerHTML =
+    PUZZLE.train.map(([w,v])=>`<span class="ex">${w} <span class="n">&rarr; ${v}</span></span>`).join("");
+  document.getElementById("query").innerHTML = `${esc(PUZZLE.query)} &rarr; ?`;
+  document.getElementById("result").style.display="none";
+  document.getElementById("err").style.display="none";
+}
+
+async function solve(){
+  if(!PUZZLE) return;
+  const btn=document.getElementById("solve");
+  btn.disabled=true; btn.innerHTML='<span class="spin"></span>solving';
+  document.getElementById("err").style.display="none";
+  try{
+    const res = await fetch("https://api.anthropic.com/v1/messages",{
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:1000,
+        messages:[{role:"user", content:buildPrompt(PUZZLE.train, PUZZLE.query)}] })
+    });
+    if(!res.ok) throw new Error("API returned "+res.status);
+    const data = await res.json();
+    const text = (data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n").trim();
+    const guess = firstInt(text);
+    const correct = guess===PUZZLE.answer;
+    attempts++; if(correct) solved++;
+
+    document.getElementById("guess").textContent = guess==null?"—":guess;
+    document.getElementById("guess").className = "v "+(correct?"good":"bad");
+    document.getElementById("expected").textContent = PUZZLE.answer;
+    const v=document.getElementById("verdict");
+    v.textContent = correct?"cracked it":"missed"; v.className="verdict "+(correct?"ok":"no");
+    document.getElementById("rulereveal").innerHTML = `hidden rule was: <b>${esc(RULES[PUZZLE.id].desc)}</b>`;
+    document.getElementById("reasontext").textContent = text || "(no text returned)";
+    document.getElementById("result").style.display="block";
+    document.getElementById("tally").textContent = `${solved} / ${attempts} solved`;
+  }catch(e){
+    const err=document.getElementById("err");
+    err.style.display="block";
+    err.textContent = "Couldn't reach a model ("+e.message+"). This demo needs the Claude artifact environment to supply model access.";
+  }finally{
+    btn.disabled=false; btn.textContent="solve with Claude";
+  }
+}
+
+document.getElementById("new").addEventListener("click", showPuzzle);
+document.getElementById("diff").addEventListener("change", showPuzzle);
+document.getElementById("solve").addEventListener("click", solve);
+showPuzzle();
+</script>
+</body>
+</html>
